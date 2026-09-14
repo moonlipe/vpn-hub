@@ -1,4 +1,4 @@
-# VPN Gateway Unificado — Podman
+# VPN Hub Unificado — Podman
 
 Imagem container com **openfortivpn** (SAML/MFA via Playwright/Chromium headless), **snx-rs** (Check Point) e **WireGuard** — túneis simultâneos, cada um roteando apenas as sub-redes do cliente.
 
@@ -44,10 +44,10 @@ ls -la /dev/net/tun /dev/ppp
 git clone https://github.com/moonlipe/openforti-saml-resolver.git vpn-daemon
 
 # Build
-podman build -t vpn-gateway:latest .
+podman build -t vpn-hub:latest .
 ```
 
-Ou faça push no branch `main` — o GitHub Actions builda e publica em `ghcr.io/moonlipe/vpn-gateway:latest` automaticamente.
+Ou faça push no branch `main` — o GitHub Actions builda e publica em `ghcr.io/moonlipe/vpn-hub:latest` automaticamente.
 
 ## Configuração
 
@@ -84,9 +84,9 @@ chmod 600 ~/vpn-configs/wireguard/wg0.conf
 ./start.sh
 
 # Ou manualmente
-podman build -t vpn-gateway:local .
+podman build -t vpn-hub:local .
 podman run -d \
-  --name vpn-gateway \
+  --name vpn-hub \
   --privileged \
   --device /dev/net/tun \
   --device /dev/ppp \
@@ -94,12 +94,12 @@ podman run -d \
   --dns=none \
   --env-file forti-daemon.env \
   -e SOCAT_FORWARDS="4000:10.0.0.100:3389" \
-  -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \
-  -v ~/vpn-configs/wireguard:/etc/vpn-gateway/wireguard:Z \
+  -v ~/vpn-configs/snx:/etc/vpn-hub/snx:Z \
+  -v ~/vpn-configs/wireguard:/etc/vpn-hub/wireguard:Z \
   -v vpn-daemon-state:/opt/vpn-daemon/.local:Z \
   -p 4000:4000 \
   --restart unless-stopped \
-  vpn-gateway:local
+  vpn-hub:local
 ```
 
 ### Servidor (Oracle Cloud)
@@ -109,9 +109,9 @@ podman run -d \
 ./start-gateway.sh
 
 # Ou manualmente
-podman pull ghcr.io/moonlipe/vpn-gateway:latest
+podman pull ghcr.io/moonlipe/vpn-hub:latest
 podman run -d \
-  --name vpn-gateway \
+  --name vpn-hub \
   --privileged \
   --device /dev/net/tun \
   --device /dev/ppp \
@@ -119,12 +119,12 @@ podman run -d \
   --dns=none \
   --env-file ~/vpn-configs/forti-daemon.env \
   -e SOCAT_FORWARDS="4000:10.0.0.100:3389" \
-  -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \
-  -v ~/vpn-configs/wireguard:/etc/vpn-gateway/wireguard:Z \
+  -v ~/vpn-configs/snx:/etc/vpn-hub/snx:Z \
+  -v ~/vpn-configs/wireguard:/etc/vpn-hub/wireguard:Z \
   -v vpn-daemon-state:/opt/vpn-daemon/.local:Z \
   -p 4000:4000 \
   --restart unless-stopped \
-  ghcr.io/moonlipe/vpn-gateway:latest
+  ghcr.io/moonlipe/vpn-hub:latest
 ```
 
 Flags obrigatórias:
@@ -154,19 +154,19 @@ O snx-rs pode perder conectividade mesmo mantendo o processo ativo. O watchdog m
 1. A cada 120s, faz `ping` para um IP interno da VPN (`SNX_HEALTHCHECK_IP`)
 2. Se o ping falhar ou o processo snx-rs morrer, reinicia automaticamente
 3. Limite de 5 restarts em 10 minutos (evita loop infinito)
-4. Logs em `/var/log/vpn-gateway/snx-watchdog.log`
+4. Logs em `/var/log/vpn-hub/snx-watchdog.log`
 
 ### Ativar
 
 ```bash
 podman run -d \
-  --name vpn-gateway \
+  --name vpn-hub \
   --privileged \
   --device /dev/net/tun \
   --device /dev/ppp \
   --dns=none \
   -e SNX_HEALTHCHECK_IP="10.20.0.1" \
-  -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \
+  -v ~/vpn-configs/snx:/etc/vpn-hub/snx:Z \
   ...
 ```
 
@@ -184,7 +184,7 @@ Se `SNX_HEALTHCHECK_IP` não estiver definido, o snx-rs roda normalmente sem mon
 
 ## Primeira execução (MFA)
 
-1. Acompanhe os logs: `podman logs -f vpn-gateway`
+1. Acompanhe os logs: `podman logs -f vpn-hub`
 2. O daemon abre Chromium headless, navega para o gateway e aguarda MFA
 3. Aprovação acontece no **celular** (Microsoft Authenticator) — confirme o número exibido no log
 4. Após aprovação, sessão fica salva no volume `vpn-daemon-state`
@@ -203,7 +203,7 @@ podman run --rm -it \
   --env-file forti-daemon.env \
   -e VPN_SCREENSHOTS=1 -e VPN_DEBUG=1 \
   -v vpn-daemon-state:/opt/vpn-daemon/.local:Z \
-  ghcr.io/moonlipe/vpn-gateway:latest
+  ghcr.io/moonlipe/vpn-hub:latest
 ```
 
 Screenshots ficam em `/opt/vpn-daemon/.local/share/vpn-daemon/screenshots/` dentro do container.
@@ -212,26 +212,26 @@ Screenshots ficam em `/opt/vpn-daemon/.local/share/vpn-daemon/screenshots/` dent
 
 ```bash
 # Ver interfaces ativas (deve mostrar ppp0, snx-xfrm, wg0)
-podman exec vpn-gateway ip -brief addr show
+podman exec vpn-hub ip -brief addr show
 
 # Verificar interface ppp0 especificamente
-podman exec vpn-gateway ip addr show ppp0
+podman exec vpn-hub ip addr show ppp0
 
 # Ver rotas ativas
-podman exec vpn-gateway ip route show
+podman exec vpn-hub ip route show
 
 # Verificar logs do openfortivpn para confirmar tunnel
-podman exec vpn-gateway tail -f /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn_saml.log
+podman exec vpn-hub tail -f /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn_saml.log
 ```
 
 ## Logs
 
 ```bash
-podman exec vpn-gateway tail -f /var/log/vpn-gateway/forti.log
-podman exec vpn-gateway tail -f /var/log/vpn-gateway/snx.log
-podman exec vpn-gateway tail -f /var/log/vpn-gateway/snx-watchdog.log
-podman exec vpn-gateway tail -f /var/log/vpn-gateway/wireguard.log
-podman exec vpn-gateway tail -f /var/log/vpn-gateway/socat.log
+podman exec vpn-hub tail -f /var/log/vpn-hub/forti.log
+podman exec vpn-hub tail -f /var/log/vpn-hub/snx.log
+podman exec vpn-hub tail -f /var/log/vpn-hub/snx-watchdog.log
+podman exec vpn-hub tail -f /var/log/vpn-hub/wireguard.log
+podman exec vpn-hub tail -f /var/log/vpn-hub/socat.log
 ```
 
 ## Roteamento simultâneo
@@ -275,10 +275,10 @@ Cada VPN roteia **apenas** as sub-redes do seu cliente (`no-default-route` / `Al
 
 ## CI/CD
 
-Push no branch `main` dispara build automático via GitHub Actions → publica em `ghcr.io/moonlipe/vpn-gateway:latest`. No servidor, basta:
+Push no branch `main` dispara build automático via GitHub Actions → publica em `ghcr.io/moonlipe/vpn-hub:latest`. No servidor, basta:
 
 ```bash
-podman pull ghcr.io/moonlipe/vpn-gateway:latest
-podman rm -f vpn-gateway
+podman pull ghcr.io/moonlipe/vpn-hub:latest
+podman rm -f vpn-hub
 bash start-gateway.sh
 ```
