@@ -12,7 +12,7 @@ if [ -n "${VPN_GATEWAY:-}" ] && [ -n "${VPN_USERNAME:-}" ] && [ -n "${VPN_PASSWO
     fi
 fi
 
-if [ -f /etc/vpn-gateway/snx/config.toml ]; then
+if [ -f /etc/vpn-hub/snx/config.toml ]; then
     FOUND_ANY_CONFIG=1
     # snx-rs geralmente cria tun0/snx0 — ajuste o nome conforme a versão usada
     if ip link show tun0 &>/dev/null || ip link show snx0 &>/dev/null; then
@@ -20,7 +20,7 @@ if [ -f /etc/vpn-gateway/snx/config.toml ]; then
     fi
 fi
 
-if [ -f /etc/vpn-gateway/wireguard/wg0.conf ]; then
+if [ -f /etc/vpn-hub/wireguard/wg0.conf ]; then
     FOUND_ANY_CONFIG=1
     if ip link show wg0 &>/dev/null; then
         FOUND_ANY_UP=1
