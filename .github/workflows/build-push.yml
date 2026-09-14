@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/vpn-gateway
+  IMAGE_NAME: ${{ github.repository_owner }}/vpn-hub
 
 jobs:
   build-and-push:
