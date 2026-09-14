@@ -2,72 +2,30 @@
 
 Guia completo para rodar o VPN Gateway em instâncias Oracle Cloud (E2 Micro, Ubuntu).
 
-## Problema: kernel Oracle sem PPP
+## PPP no Oracle Cloud
 
-O kernel Oracle (`linux-oracle`) no x86_64 **remove os módulos PPP** propositalmente (cloud-optimized). O openfortivpn precisa do `pppd` que depende do módulo `ppp_generic` do kernel.
+O kernel Oracle (`linux-oracle`) **já inclui** o módulo `ppp_generic`, mas ele precisa ser carregado manualmente. Não é necessário trocar de kernel.
 
-**Sintoma**: openfortivpn autentica via SAML, mas falha com:
-```
-Couldn't open the /dev/ppp device: No such file or directory
-pppd: The kernel does not support PPP
-```
-
-**Solução**: trocar para o kernel genérico Ubuntu.
-
-### 1. Instalar kernel genérico
+### 1. Carregar módulo e liberar permissão
 
 ```bash
-sudo apt update
-sudo apt install linux-generic
-```
+# Carregar módulo PPP
+sudo modprobe ppp_generic
 
-Isso instala o kernel `6.8.x` genérico com todos os módulos PPP.
-
-### 2. Configurar GRUB para bootar o genérico
-
-```bash
-# Ver entries do GRUB
-sudo grep -E 'menuentry|submenu' /boot/grub/grub.cfg | cat -n
-
-# Definir o genérico como default (ajuste o número conforme output acima)
-# Geralmente: submenu "Advanced options" = entry 1, genérico = posição 4
-sudo sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT="1>4"/' /etc/default/grub
-sudo update-grub
-
-# Reiniciar
-sudo reboot
-```
-
-### 3. Verificar
-
-```bash
-uname -r                          # deve mostrar 6.8.0-xxx-generic
-sudo modprobe ppp_generic          # deve funcionar sem erro
-ls /lib/modules/$(uname -r)/kernel/drivers/net/ppp/  # deve listar ppp_async.ko, etc.
-```
-
-### 4. Garantir que o módulo carrega no boot
-
-```bash
-echo ppp_generic | sudo tee /etc/modules-load.d/ppp.conf
-```
-
-## Problema: /dev/ppp com permissão errada
-
-Mesmo com o módulo carregado, o `pppd` pode falhar com **"Permission denied"** porque o podman rootless mapeia o device com ownership `nobody:nogroup`.
-
-**Sintoma**:
-```
-Couldn't open the /dev/ppp device: Permission denied
-```
-
-**Solução**: corrigir as permissões **no host** antes de iniciar o container. O `chmod` dentro do container rootless não funciona (o podman impede alterar permissões de devices mapeados).
-
-```bash
-# Corrigir agora
+# Liberar permissão (o device /dev/ppp já existe após o modprobe)
 sudo chmod 666 /dev/ppp
 
-# Para persistir no boot
+# Verificar
+ls -la /dev/ppp
+```
+
+### 2. Persistir no boot
+
+```bash
+# Carregar módulo automaticamente
+echo ppp_generic | sudo tee /etc/modules-load.d/ppp.conf
+
+# Service para garantir permissão do /dev/ppp no boot
 sudo tee /etc/systemd/system/dev-ppp-permissions.service << 'EOF'
 [Unit]
 Description=Fix /dev/ppp permissions for rootless podman
@@ -83,6 +41,14 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl enable dev-ppp-permissions.service
+```
+
+### 3. Verificar
+
+```bash
+uname -r                          # kernel Oracle (ex: 6.17.0-xxx-oracle)
+sudo modprobe ppp_generic          # deve funcionar sem erro
+ls -la /dev/ppp                    # deve existir com permissão 666
 ```
 
 ## Container auto-start no reboot
@@ -118,48 +84,32 @@ systemctl --user enable vpn-gateway.service
 sudo loginctl enable-linger ubuntu
 ```
 
-## mknod para /dev/ppp (se necessário)
-
-Se o `/dev/ppp` não existir no host:
-
-```bash
-sudo mknod /dev/ppp c 108 0
-sudo chmod 666 /dev/ppp
-```
-
-Para persistir no boot, crie um service systemd:
-
-```bash
-sudo cat > /etc/systemd/system/dev-ppp.service << 'EOF'
-[Unit]
-Description=Create /dev/ppp device
-Before=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/mknod -m 666 /dev/ppp c 108 0
-ExecStartPost=/bin/chmod 666 /dev/ppp
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl enable dev-ppp.service
-```
-
-## start.sh completo (referência)
+## start-gateway.sh completo (servidor)
 
 ```bash
 #!/bin/bash
 set -euo pipefail
 
+# ============================================================
+# start-gateway.sh — Execução no servidor (Oracle Cloud)
+# ============================================================
+
+CONTAINER_NAME="vpn-gateway"
+IMAGE="ghcr.io/moonlipe/vpn-gateway:latest"
+
 SOCAT_FORWARDS="4000:10.0.0.100:3389,4001:10.0.0.100:19990,4002:10.0.0.100:18766,4010:10.0.0.200:3389,4020:10.0.0.201:3389"
 
-podman rm -f vpn-gateway 2>/dev/null || true
+# Puxar imagem mais recente
+echo "[$(date '+%H:%M:%S')] Pulling $IMAGE ..."
+podman pull "$IMAGE"
 
+# Parar container antigo se existir
+podman rm -f "$CONTAINER_NAME" 2>/dev/null || true
+
+# Subir container
+echo "[$(date '+%H:%M:%S')] Iniciando container..."
 podman run -d \
-  --name vpn-gateway \
+  --name "$CONTAINER_NAME" \
   --privileged \
   --device /dev/net/tun \
   --device /dev/ppp \
@@ -176,16 +126,32 @@ podman run -d \
   -p 4010:4010 \
   -p 4020:4020 \
   --restart unless-stopped \
-  ghcr.io/moonlipe/vpn-gateway:latest
+  "$IMAGE"
+
+echo "[$(date '+%H:%M:%S')] OK."
+echo "  podman logs -f $CONTAINER_NAME"
+echo "  podman exec $CONTAINER_NAME tail -f /var/log/vpn-gateway/snx-watchdog.log"
 ```
+
+## Flags obrigatórias
+
+| Flag | Motivo |
+|------|--------|
+| `--privileged` | snx-rs escreve em `/proc/sys` para configurar XFRM (rootless Podman) |
+| `--device /dev/net/tun` | Interfaces de rede tuneladas |
+| `--device /dev/ppp` | openfortivpn usa pppd para criar ppp0 |
+| `--dns=none` | Evita que o Podman monte `/etc/resolv.conf` read-only (snx-rs tenta escrever) |
+| `--env-file` | Credenciais nunca entram na imagem |
+| `-v vpn-daemon-state:...` | Persiste sessão do navegador (evita MFA a cada restart) |
 
 ## Troubleshooting rápido
 
 | Erro | Causa | Solução |
 |------|-------|---------|
-| `Module ppp not found` | Kernel Oracle sem PPP | Trocar para kernel genérico (`linux-generic`) |
+| `Module ppp not found` | Módulo não carregado | `sudo modprobe ppp_generic` |
 | `/dev/ppp: Permission denied` | Rootless mapeia como nobody | `sudo chmod 666 /dev/ppp` no host |
-| `Couldn't open /dev/ppp: No such file` | Device não existe no host | `sudo mknod /dev/ppp c 108 0` |
+| `Couldn't open /dev/ppp: No such file` | Device não existe | `sudo modprobe ppp_generic` (geralmente cria o device) |
 | `pppd: The kernel does not support PPP` | Módulo ppp_generic não carregado | `sudo modprobe ppp_generic` |
 | MFA pede toda vez | Volume de sessão não persistente | Usar `-v vpn-daemon-state:/opt/vpn-daemon/.local:Z` |
 | snx-xfrm cai | Config com login-type errado | Usar `vpn_Username_Password` (case-sensitive) |
+| ppp0 não sobe | Permissão ou módulo | Verificar `modprobe` + `chmod` |
