@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-CONFIG_FILE="/etc/vpn-gateway/snx/config.toml"
+CONFIG_FILE="/etc/vpn-hub/snx/config.toml"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [snx] $*"
