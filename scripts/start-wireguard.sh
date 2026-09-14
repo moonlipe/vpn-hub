@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-WG_CONFIG="/etc/vpn-gateway/wireguard/wg0.conf"
+WG_CONFIG="/etc/vpn-hub/wireguard/wg0.conf"
 WG_IFACE="wg0"
 
 log() {
