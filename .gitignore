@@ -1,11 +1,13 @@
 # Código do daemon — clonado via CI, não versionado aqui
 vpn-daemon/
+vpn-config/
 
 # Credenciais e configs reais
 *.env
 !forti-daemon.env.example
 *.toml
 !snx-config.example.toml
+start.sh
 
 # Sessão do navegador e cookies
 **/saml_cookie

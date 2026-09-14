@@ -17,6 +17,21 @@ fi
 
 PIDS=()
 
+# Torna /etc/resolv.conf gravável — o snx-rs tenta escrever nele e o
+# Podman rootless monta como read-only bind do host.
+# Com --dns=none, o Podman não monta resolv.conf — criamos um novo.
+if [ ! -w /etc/resolv.conf ]; then
+    RESOLV_CONTENT=$(cat /etc/resolv.conf 2>/dev/null || true)
+    rm -f /etc/resolv.conf 2>/dev/null || true
+    if [ -n "$RESOLV_CONTENT" ]; then
+        echo "$RESOLV_CONTENT" > /etc/resolv.conf
+    else
+        echo "nameserver 8.8.8.8" > /etc/resolv.conf
+        echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+    fi
+    log "/etc/resolv.conf tornado gravável"
+fi
+
 cleanup() {
     log "Recebido sinal de encerramento, derrubando túneis..."
     for pid in "${PIDS[@]}"; do
@@ -49,8 +64,13 @@ else
 fi
 
 if [ -f /etc/vpn-gateway/snx/config.toml ]; then
-    log "Config do snx-rs encontrada, iniciando..."
-    /usr/local/bin/start-snx.sh >> "$LOG_DIR/snx.log" 2>&1 &
+    if [ -n "${SNX_HEALTHCHECK_IP:-}" ]; then
+        log "Config do snx-rs encontrada, iniciando com watchdog (IP: $SNX_HEALTHCHECK_IP)..."
+        /usr/local/bin/snx-watchdog.sh >> "$LOG_DIR/snx-watchdog.log" 2>&1 &
+    else
+        log "Config do snx-rs encontrada, iniciando (sem watchdog)..."
+        /usr/local/bin/start-snx.sh >> "$LOG_DIR/snx.log" 2>&1 &
+    fi
     PIDS+=($!)
 else
     log "Sem config em /etc/vpn-gateway/snx/config.toml — pulando snx-rs."

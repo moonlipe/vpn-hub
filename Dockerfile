@@ -175,6 +175,7 @@ RUN chown -R vpndaemon:vpndaemon /opt/vpn-daemon
 # Scripts de controle (snx, wireguard, entrypoint, healthcheck)
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY scripts/start-snx.sh /usr/local/bin/start-snx.sh
+COPY scripts/snx-watchdog.sh /usr/local/bin/snx-watchdog.sh
 COPY scripts/start-wireguard.sh /usr/local/bin/start-wireguard.sh
 COPY scripts/start-forti-daemon.sh /usr/local/bin/start-forti-daemon.sh
 COPY scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
@@ -182,6 +183,7 @@ COPY scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 RUN chmod +x \
     /usr/local/bin/entrypoint.sh \
     /usr/local/bin/start-snx.sh \
+    /usr/local/bin/snx-watchdog.sh \
     /usr/local/bin/start-wireguard.sh \
     /usr/local/bin/start-forti-daemon.sh \
     /usr/local/bin/healthcheck.sh

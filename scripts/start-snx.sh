@@ -17,4 +17,4 @@ log "Iniciando snx-rs com config $CONFIG_FILE"
 # snx-rs roda como daemon lendo o config.toml (server, usuário, tipo de auth,
 # etc.). Se vocês usam SAML no Check Point também, o config.toml suporta
 # auth-type = "saml" — veja a doc do snx-rs para o formato exato.
-exec snx-rs --config-file "$CONFIG_FILE"
+snx-rs --config-file "$CONFIG_FILE"

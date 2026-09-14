@@ -160,10 +160,11 @@ podman rm -f vpn-gateway 2>/dev/null || true
 
 podman run -d \
   --name vpn-gateway \
-  --cap-add NET_ADMIN \
+  --privileged \
   --device /dev/net/tun \
   --device /dev/ppp \
   --sysctl net.ipv4.ip_forward=1 \
+  --dns=none \
   --env-file ~/vpn-configs/forti-daemon.env \
   -e SOCAT_FORWARDS="$SOCAT_FORWARDS" \
   -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \

@@ -11,6 +11,7 @@ vpners/
 ├── scripts/
 │   ├── start-forti-daemon.sh     # Daemon Python (SAML/Chromium) como vpndaemon
 │   ├── start-snx.sh              # snx-rs com config.toml
+│   ├── snx-watchdog.sh           # Watchdog: monitora VPN e reinicia snx-rs
 │   ├── start-wireguard.sh        # wg-quick up + monitoramento
 │   └── healthcheck.sh            # Verifica interfaces ativas
 ├── vpn-daemon/                   # Clonado via CI (não versionado neste repo)
@@ -33,6 +34,8 @@ sudo modprobe ppp_generic  # deve funcionar
 ```
 
 > **Oracle Cloud**: o kernel Oracle no x86_64 **remove PPP**. Veja [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md) para resolver.
+
+> **Rootless Podman**: o snx-rs precisa de `--privileged` porque escreve em `/proc/sys` para configurar XFRM. O entrypoint também lida com `/etc/resolv.conf` read-only usando `--dns=none`.
 
 ## Build da imagem
 
@@ -77,10 +80,11 @@ chmod 600 ~/vpn-configs/wireguard/wg0.conf
 ```bash
 podman run -d \
   --name vpn-gateway \
-  --cap-add NET_ADMIN \
+  --privileged \
   --device /dev/net/tun \
   --device /dev/ppp \
   --sysctl net.ipv4.ip_forward=1 \
+  --dns=none \
   --env-file forti-daemon.env \
   -e SOCAT_FORWARDS="4000:10.0.0.100:3389" \
   -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \
@@ -92,8 +96,10 @@ podman run -d \
 ```
 
 Flags obrigatórias:
-- `--cap-add NET_ADMIN` + `--device /dev/net/tun`: para criar interfaces de rede
+- `--privileged`: necessário para snx-rs escrever em `/proc/sys` (XFRM)
+- `--device /dev/net/tun`: para criar interfaces de rede
 - `--device /dev/ppp`: para o openfortivpn usar pppd
+- `--dns=none`: evita que o Podman monte `/etc/resolv.conf` read-only (snx-rs tenta escrever nele)
 - `--env-file`: credenciais nunca entram na imagem
 - `vpn-daemon-state`: persiste sessão do navegador (evita MFA a cada restart)
 
@@ -106,6 +112,42 @@ Exponha serviços de sub-redes atrás dos túneis:
 -e SOCAT_FORWARDS="4000:10.0.0.100:3389,4010:10.0.0.200:3389"
 -p 4000:4000 -p 4010:4010
 ```
+
+## Watchdog snx-rs (auto-restart)
+
+O snx-rs pode perder conectividade mesmo mantendo o processo ativo. O watchdog monitora a VPN via ping e reinicia automaticamente quando a conexão cai.
+
+### Como funciona
+
+1. A cada 120s, faz `ping` para um IP interno da VPN (`SNX_HEALTHCHECK_IP`)
+2. Se o ping falhar ou o processo snx-rs morrer, reinicia automaticamente
+3. Limite de 5 restarts em 10 minutos (evita loop infinito)
+4. Logs em `/var/log/vpn-gateway/snx-watchdog.log`
+
+### Ativar
+
+```bash
+podman run -d \
+  --name vpn-gateway \
+  --cap-add NET_ADMIN \
+  --device /dev/net/tun \
+  --device /dev/ppp \
+  -e SNX_HEALTHCHECK_IP="10.20.0.1" \
+  -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \
+  ...
+```
+
+### Variáveis de ambiente
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `SNX_HEALTHCHECK_IP` | *(vazio)* | IP interno da VPN para ping. Se não definido, watchdog desabilitado |
+| `SNX_CHECK_INTERVAL` | `120` | Intervalo entre checks (segundos) |
+| `SNX_RESTART_LIMIT` | `5` | Máximo de restarts em 10 minutos |
+
+### Sem watchdog
+
+Se `SNX_HEALTHCHECK_IP` não estiver definido, o snx-rs roda normalmente sem monitoramento (comportamento anterior).
 
 ## Primeira execução (MFA)
 
@@ -142,6 +184,7 @@ podman exec vpn-gateway ip route show
 ```bash
 podman exec vpn-gateway tail -f /var/log/vpn-gateway/forti.log
 podman exec vpn-gateway tail -f /var/log/vpn-gateway/snx.log
+podman exec vpn-gateway tail -f /var/log/vpn-gateway/snx-watchdog.log
 podman exec vpn-gateway tail -f /var/log/vpn-gateway/wireguard.log
 podman exec vpn-gateway tail -f /var/log/vpn-gateway/socat.log
 ```
