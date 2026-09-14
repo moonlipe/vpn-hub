@@ -151,9 +151,9 @@ RUN useradd --system --create-home --home-dir /opt/vpn-daemon --shell /bin/bash 
 
 # Estrutura de diretórios de config (serão montados como volumes em produção)
 RUN mkdir -p \
-    /etc/vpn-gateway/snx \
-    /etc/vpn-gateway/wireguard \
-    /var/log/vpn-gateway \
+    /etc/vpn-hub/snx \
+    /etc/vpn-hub/wireguard \
+    /var/log/vpn-hub \
     /opt/vpn-daemon
 
 # ------------------------------------------------------------
