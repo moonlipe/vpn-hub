@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-LOG_DIR="/var/log/vpn-gateway"
+LOG_DIR="/var/log/vpn-hub"
 mkdir -p "$LOG_DIR"
 
 log() {
@@ -63,7 +63,7 @@ else
     log "VPN_GATEWAY/VPN_USERNAME/VPN_PASSWORD não definidas — pulando openfortivpn."
 fi
 
-if [ -f /etc/vpn-gateway/snx/config.toml ]; then
+if [ -f /etc/vpn-hub/snx/config.toml ]; then
     if [ -n "${SNX_HEALTHCHECK_IP:-}" ]; then
         log "Config do snx-rs encontrada, iniciando com watchdog (IP: $SNX_HEALTHCHECK_IP)..."
         /usr/local/bin/snx-watchdog.sh >> "$LOG_DIR/snx-watchdog.log" 2>&1 &
@@ -73,15 +73,15 @@ if [ -f /etc/vpn-gateway/snx/config.toml ]; then
     fi
     PIDS+=($!)
 else
-    log "Sem config em /etc/vpn-gateway/snx/config.toml — pulando snx-rs."
+    log "Sem config em /etc/vpn-hub/snx/config.toml — pulando snx-rs."
 fi
 
-if [ -f /etc/vpn-gateway/wireguard/wg0.conf ]; then
+if [ -f /etc/vpn-hub/wireguard/wg0.conf ]; then
     log "Config do WireGuard encontrada, iniciando..."
     /usr/local/bin/start-wireguard.sh >> "$LOG_DIR/wireguard.log" 2>&1 &
     PIDS+=($!)
 else
-    log "Sem config em /etc/vpn-gateway/wireguard/wg0.conf — pulando WireGuard."
+    log "Sem config em /etc/vpn-hub/wireguard/wg0.conf — pulando WireGuard."
 fi
 
 # ------------------------------------------------------------------
