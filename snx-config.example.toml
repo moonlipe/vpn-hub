@@ -1,4 +1,4 @@
-# /etc/vpn-gateway/snx/config.toml
+# /etc/vpn-hub/snx/config.toml
 # Referência: https://github.com/ancwrd1/snx-rs
 
 server-name = "vpn.clienteB.com.br"

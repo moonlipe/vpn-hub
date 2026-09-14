@@ -4,7 +4,7 @@ set -euo pipefail
 # Watchdog para snx-rs: monitora conectividade via ping e reinicia
 # quando a VPN cai. Protege contra loop infinito com limite de restarts.
 
-CONFIG_FILE="/etc/vpn-gateway/snx/config.toml"
+CONFIG_FILE="/etc/vpn-hub/snx/config.toml"
 CHECK_INTERVAL="${SNX_CHECK_INTERVAL:-120}"
 RESTART_LIMIT="${SNX_RESTART_LIMIT:-5}"
 RESTART_WINDOW=600  # janela de 10 minutos para contar restarts
@@ -14,7 +14,7 @@ PING_COUNT=1
 SNX_PID=""
 RESTART_COUNT=0
 RESTART_WINDOW_START=0
-LAST_LOG_FILE="/var/log/vpn-gateway/snx-watchdog.log"
+LAST_LOG_FILE="/var/log/vpn-hub/snx-watchdog.log"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [snx-watchdog] $*"
@@ -50,7 +50,7 @@ can_restart() {
 
 start_snx() {
     log "Iniciando snx-rs..."
-    /usr/local/bin/start-snx.sh >> /var/log/vpn-gateway/snx.log 2>&1 &
+    /usr/local/bin/start-snx.sh >> /var/log/vpn-hub/snx.log 2>&1 &
     SNX_PID=$!
     log "snx-rs iniciado com PID $SNX_PID"
 }

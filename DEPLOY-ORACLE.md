@@ -62,15 +62,15 @@ Adicione `--restart unless-stopped` no `podman run`. O podman gerencia o restart
 ```bash
 mkdir -p ~/.config/systemd/user/
 
-cat > ~/.config/systemd/user/vpn-gateway.service << 'EOF'
+cat > ~/.config/systemd/user/vpn-hub.service << 'EOF'
 [Unit]
 Description=VPN Gateway Container
 After=network-online.target
 
 [Service]
 Restart=always
-ExecStart=/usr/bin/podman start -a vpn-gateway
-ExecStop=/usr/bin/podman stop vpn-gateway
+ExecStart=/usr/bin/podman start -a vpn-hub
+ExecStop=/usr/bin/podman stop vpn-hub
 TimeoutStopSec=30
 
 [Install]
@@ -78,7 +78,7 @@ WantedBy=default.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable vpn-gateway.service
+systemctl --user enable vpn-hub.service
 
 # Habilitar lingering (pra rodar sem estar logado)
 sudo loginctl enable-linger ubuntu
@@ -94,8 +94,8 @@ set -euo pipefail
 # start-gateway.sh — Execução no servidor (Oracle Cloud)
 # ============================================================
 
-CONTAINER_NAME="vpn-gateway"
-IMAGE="ghcr.io/moonlipe/vpn-gateway:latest"
+CONTAINER_NAME="vpn-hub"
+IMAGE="ghcr.io/moonlipe/vpn-hub:latest"
 
 SOCAT_FORWARDS="4000:10.0.0.100:3389,4001:10.0.0.100:19990,4002:10.0.0.100:18766,4010:10.0.0.200:3389,4020:10.0.0.201:3389"
 
@@ -130,7 +130,7 @@ podman run -d \
 
 echo "[$(date '+%H:%M:%S')] OK."
 echo "  podman logs -f $CONTAINER_NAME"
-echo "  podman exec $CONTAINER_NAME tail -f /var/log/vpn-gateway/snx-watchdog.log"
+echo "  podman exec $CONTAINER_NAME tail -f /var/log/vpn-hub/snx-watchdog.log"
 ```
 
 ## Flags obrigatórias

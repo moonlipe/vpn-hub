@@ -29,7 +29,7 @@ vpners/
 ├── forti-daemon.env.example      # Template: VPN_GATEWAY, VPN_USERNAME, VPN_PASSWORD
 ├── snx-config.example.toml       # Template config snx-rs
 ├── wireguard.conf.example       # Template config WireGuard
-└── .github/workflows/build-push.yml  # CI: build → ghcr.io/moonlipe/vpn-gateway:latest
+└── .github/workflows/build-push.yml  # CI: build → ghcr.io/moonlipe/vpn-hub:latest
 ```
 
 ## Arquivos Críticos
@@ -90,7 +90,7 @@ vpn-configs/
 | | Local | Servidor (Oracle) |
 |---|---|---|
 | Script | `start.sh` (build + run) | `start-gateway.sh` (pull + run) |
-| Imagem | `vpn-gateway:local` | `ghcr.io/moonlipe/vpn-gateway:latest` |
+| Imagem | `vpn-hub:local` | `ghcr.io/moonlipe/vpn-hub:latest` |
 | Config | `./vpn-config/` | `~/vpn-configs/` |
 | Env file | `./vpn-config/forti-daemon.env` | `~/vpn-configs/forti-daemon.env` |
 
@@ -137,7 +137,7 @@ sudo chmod 666 /dev/ppp
 
 ## CI/CD
 
-Push no `main` → GitHub Actions → `ghcr.io/moonlipe/vpn-gateway:latest`
+Push no `main` → GitHub Actions → `ghcr.io/moonlipe/vpn-hub:latest`
 - CI clona `vpn-daemon` de `moonlipe/openforti-saml-resolver`
 - Local: `vpn-daemon/` é gitignored, clonar manualmente para build
 
