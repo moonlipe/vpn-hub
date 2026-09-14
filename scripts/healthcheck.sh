@@ -20,11 +20,15 @@ if [ -f /etc/vpn-hub/snx/config.toml ]; then
     fi
 fi
 
-if [ -f /etc/vpn-hub/wireguard/wg0.conf ]; then
+WG_CONFIGS=(/etc/vpn-hub/wireguard/*.conf)
+if [ -e "${WG_CONFIGS[0]}" ]; then
     FOUND_ANY_CONFIG=1
-    if ip link show wg0 &>/dev/null; then
-        FOUND_ANY_UP=1
-    fi
+    for conf in "${WG_CONFIGS[@]}"; do
+        iface="$(basename "$conf" .conf)"
+        if ip link show "$iface" &>/dev/null; then
+            FOUND_ANY_UP=1
+        fi
+    done
 fi
 
 if [ "$FOUND_ANY_CONFIG" -eq 0 ]; then

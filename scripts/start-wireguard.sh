@@ -1,11 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-WG_CONFIG="/etc/vpn-hub/wireguard/wg0.conf"
-WG_IFACE="wg0"
+# Uso: start-wireguard.sh <caminho_do_config.conf>
+# Cada instância gerencia UMA interface WireGuard.
+
+WG_CONFIG="${1:?Uso: $0 <caminho_do_config.conf>}"
+WG_IFACE="$(basename "$WG_CONFIG" .conf)"
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [wireguard] $*"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [wireguard/$WG_IFACE] $*"
 }
 
 if [ ! -f "$WG_CONFIG" ]; then
@@ -16,11 +19,8 @@ fi
 log "Subindo interface $WG_IFACE"
 
 # wg-quick precisa que o arquivo esteja em /etc/wireguard/<iface>.conf
-# ou recebe o caminho direto na versão mais nova do wireguard-tools.
-cp "$WG_CONFIG" "/etc/wireguard/${WG_IFACE}.conf" 2>/dev/null || {
-    mkdir -p /etc/wireguard
-    cp "$WG_CONFIG" "/etc/wireguard/${WG_IFACE}.conf"
-}
+mkdir -p /etc/wireguard
+cp "$WG_CONFIG" "/etc/wireguard/${WG_IFACE}.conf"
 chmod 600 "/etc/wireguard/${WG_IFACE}.conf"
 
 wg-quick up "$WG_IFACE"

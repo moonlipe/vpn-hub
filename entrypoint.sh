@@ -76,12 +76,16 @@ else
     log "Sem config em /etc/vpn-hub/snx/config.toml — pulando snx-rs."
 fi
 
-if [ -f /etc/vpn-hub/wireguard/wg0.conf ]; then
-    log "Config do WireGuard encontrada, iniciando..."
-    /usr/local/bin/start-wireguard.sh >> "$LOG_DIR/wireguard.log" 2>&1 &
-    PIDS+=($!)
+WG_CONFIGS=(/etc/vpn-hub/wireguard/*.conf)
+if [ -e "${WG_CONFIGS[0]}" ]; then
+    log "Encontradas ${#WG_CONFIGS[@]} config(s) do WireGuard, iniciando..."
+    for conf in "${WG_CONFIGS[@]}"; do
+        log "Iniciando WireGuard: $(basename "$conf")"
+        /usr/local/bin/start-wireguard.sh "$conf" >> "$LOG_DIR/wireguard-$(basename "$conf" .conf).log" 2>&1 &
+        PIDS+=($!)
+    done
 else
-    log "Sem config em /etc/vpn-hub/wireguard/wg0.conf — pulando WireGuard."
+    log "Sem configs em /etc/vpn-hub/wireguard/*.conf — pulando WireGuard."
 fi
 
 # ------------------------------------------------------------------

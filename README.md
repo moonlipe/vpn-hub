@@ -12,12 +12,12 @@ vpners/
 │   ├── start-forti-daemon.sh     # Daemon Python (SAML/Chromium) como vpndaemon
 │   ├── start-snx.sh              # snx-rs com config.toml
 │   ├── snx-watchdog.sh           # Watchdog: monitora VPN e reinicia snx-rs
-│   ├── start-wireguard.sh        # wg-quick up + monitoramento
+│   ├── start-wireguard.sh        # wg-quick up por config + monitoramento
 │   └── healthcheck.sh            # Verifica interfaces ativas
 ├── vpn-daemon/                   # Clonado via CI (não versionado neste repo)
 ├── forti-daemon.env.example      # Template de credenciais openfortivpn
 ├── snx-config.example.toml       # Template config snx-rs
-└── wg0.conf.example              # Template config WireGuard
+└── wireguard.conf.example       # Template config WireGuard
 ```
 
 ## Pré-requisitos no host
@@ -71,8 +71,12 @@ cp snx-config.example.toml ~/vpn-configs/snx/config.toml
 
 ```bash
 mkdir -p ~/vpn-configs/wireguard
-cp wg0.conf.example ~/vpn-configs/wireguard/wg0.conf
+cp wireguard.conf.example ~/vpn-configs/wireguard/wg0.conf
 chmod 600 ~/vpn-configs/wireguard/wg0.conf
+
+# Para múltiplos túneis, copie com nomes diferentes:
+cp wireguard.conf.example ~/vpn-configs/wireguard/cliente-a.conf
+cp wireguard.conf.example ~/vpn-configs/wireguard/cliente-b.conf
 ```
 
 ## Rodar
@@ -211,7 +215,7 @@ Screenshots ficam em `/opt/vpn-daemon/.local/share/vpn-daemon/screenshots/` dent
 ## Verificar túneis
 
 ```bash
-# Ver interfaces ativas (deve mostrar ppp0, snx-xfrm, wg0)
+# Ver interfaces ativas (deve mostrar ppp0, snx-xfrm, wg*)
 podman exec vpn-hub ip -brief addr show
 
 # Verificar interface ppp0 especificamente
@@ -230,7 +234,7 @@ podman exec vpn-hub tail -f /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn
 podman exec vpn-hub tail -f /var/log/vpn-hub/forti.log
 podman exec vpn-hub tail -f /var/log/vpn-hub/snx.log
 podman exec vpn-hub tail -f /var/log/vpn-hub/snx-watchdog.log
-podman exec vpn-hub tail -f /var/log/vpn-hub/wireguard.log
+podman exec vpn-hub tail -f /var/log/vpn-hub/wireguard-wg0.log
 podman exec vpn-hub tail -f /var/log/vpn-hub/socat.log
 ```
 

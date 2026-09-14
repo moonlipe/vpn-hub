@@ -7,7 +7,7 @@ Referência rápida para trabalhar neste projeto. Evita ler README/DEPLOY na ín
 Container Podman unificado com 3 VPNs simultâneas:
 - **openfortivpn** — SAML/MFA via Playwright/Chromium headless → interface `ppp0`
 - **snx-rs** — Check Point VPN → interface `snx-xfrm`
-- **WireGuard** → interface `wg0`
+- **WireGuard** → interfaces `wg*` (uma por arquivo .conf)
 
 Cada VPN rota apenas as sub-redes do seu cliente (sem conflito).
 
@@ -22,13 +22,13 @@ vpners/
 │   ├── start-forti-daemon.sh     # Executa vpn_daemon.py como vpndaemon via gosu
 │   ├── start-snx.sh              # snx-rs (sem exec — watchdog pode gerenciar)
 │   ├── snx-watchdog.sh           # Watchdog: ping healthcheck, restart com limite
-│   ├── start-wireguard.sh        # wg-quick up + monitoramento
+│   ├── start-wireguard.sh        # wg-quick up por config + monitoramento
 │   └── healthcheck.sh            # Verifica interfaces ativas
 ├── vpn-daemon/                   # Clonado via CI de moonlipe/openforti-saml-resolver (gitignored)
 │   └── vpn_daemon.py             # Daemon Python: Playwright + openfortivpn SAML
 ├── forti-daemon.env.example      # Template: VPN_GATEWAY, VPN_USERNAME, VPN_PASSWORD
 ├── snx-config.example.toml       # Template config snx-rs
-├── wg0.conf.example              # Template config WireGuard
+├── wireguard.conf.example       # Template config WireGuard
 └── .github/workflows/build-push.yml  # CI: build → ghcr.io/moonlipe/vpn-gateway:latest
 ```
 
@@ -46,16 +46,16 @@ vpners/
 - Microsoft MFA number-matching: seletor `#idRichContext_DisplaySign` (LINHA 288)
 - Regex fallback: `(?:número|number|digite|enter)\s+(\d{2,3})` (LINHA 294)
 - Volume `vpn-daemon-state` persiste sessão Azure AD (evita MFA a cada restart)
-- Logs em `/var/log/vpn-gateway/forti.log`
+- Logs em `/var/log/vpn-hub/forti.log`
 
 ### `scripts/snx-watchdog.sh`
 - Ping a cada 120s no `SNX_HEALTHCHECK_IP`
 - Restart automático se falhar, limite 5 em 10min
-- Logs em `/var/log/vpn-gateway/snx-watchdog.log`
+- Logs em `/var/log/vpn-hub/snx-watchdog.log`
 
 ## Configuração
 
-### Diretórios no servidor (`~/vpn-gateway/`)
+### Diretórios no servidor (`~/vpn-hub/`)
 ```
 vpn-configs/
 ├── forti-daemon.env          # Credenciais openfortivpn
@@ -106,17 +106,17 @@ vpn-configs/
 
 ```bash
 # Status
-podman exec vpn-gateway ip -brief addr show    # interfaces ativas
-podman exec vpn-gateway ip route show          # rotas
-podman exec vpn-gateway tail -f /var/log/vpn-gateway/forti.log  # openfortivpn
-podman exec vpn-gateway tail -f /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn_saml.log
+podman exec vpn-hub ip -brief addr show    # interfaces ativas
+podman exec vpn-hub ip route show          # rotas
+podman exec vpn-hub tail -f /var/log/vpn-hub/forti.log  # openfortivpn
+podman exec vpn-hub tail -f /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn_saml.log
 
 # Debug
-podman exec vpn-gateway cat /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn_saml.log
+podman exec vpn-hub cat /opt/vpn-daemon/.local/share/vpn-daemon/openfortivpn_saml.log
 
 # Reiniciar
-podman rm -f vpn-gateway && bash start-gateway.sh  # servidor
-podman rm -f vpn-gateway && bash start.sh          # local
+podman rm -f vpn-hub && bash start-gateway.sh  # servidor
+podman rm -f vpn-hub && bash start.sh          # local
 
 # PPP (servidor)
 sudo modprobe ppp_generic

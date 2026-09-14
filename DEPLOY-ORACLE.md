@@ -117,8 +117,8 @@ podman run -d \
   --dns=none \
   --env-file ~/vpn-configs/forti-daemon.env \
   -e SOCAT_FORWARDS="$SOCAT_FORWARDS" \
-  -v ~/vpn-configs/snx:/etc/vpn-gateway/snx:Z \
-  -v ~/vpn-configs/wireguard:/etc/vpn-gateway/wireguard:Z \
+  -v ~/vpn-configs/snx:/etc/vpn-hub/snx:Z \
+  -v ~/vpn-configs/wireguard:/etc/vpn-hub/wireguard:Z \
   -v vpn-daemon-state:/opt/vpn-daemon/.local:Z \
   -p 4000:4000 \
   -p 4001:4001 \

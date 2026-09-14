@@ -1,0 +1,23 @@
+# WireGuard config example
+# Coloque este arquivo (ou vários) em /etc/vpn-hub/wireguard/
+# O nome do arquivo define o nome da interface:
+#   cliente-a.conf → interface "cliente-a"
+#   wg0.conf       → interface "wg0"
+#
+# Para múltiplos túneis, copie este arquivo com nomes diferentes:
+#   cp wireguard.conf.example ~/vpn-configs/wireguard/cliente-a.conf
+#   cp wireguard.conf.example ~/vpn-configs/wireguard/cliente-b.conf
+
+[Interface]
+PrivateKey = <sua_chave_privada>
+Address = 10.99.0.2/32
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = <chave_publica_do_servidor>
+Endpoint = wg.clienteC.com.br:51820
+# Só as sub-redes do cliente -- NÃO use 0.0.0.0/0 aqui, pois isso
+# roteraria TODO o tráfego do container por esse túnel e conflitaria
+# com os outros túneis.
+AllowedIPs = 192.168.100.0/24
+PersistentKeepalive = 25
