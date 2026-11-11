@@ -28,6 +28,24 @@ volume `vpn-daemon-state` (sem novo MFA). Se o script antigo tiver outro nome:
 
 Depois: `bash start-server.sh` para atualizar (pull + recria só o que mudou).
 
+## Migrar o compose de rootful (sudo) para rootless
+
+Em `~/vpn-hub`, como usuário normal (**sem sudo**):
+
+```bash
+curl -fsSLo migrate-to-rootless.sh https://raw.githubusercontent.com/moonlipe/vpn-hub/main/deploy/migrate-to-rootless.sh
+curl -fsSLo start-server.sh        https://raw.githubusercontent.com/moonlipe/vpn-hub/main/deploy/start-server.sh
+bash migrate-to-rootless.sh
+```
+
+O script instala pré-requisitos, copia os volumes do root (sessão Azure AD, sem novo MFA),
+derruba o rootful, libera no `iptables` as portas do `compose.yaml` (rootless escuta direto no
+host e o firewall padrão da Oracle bloqueia a chain INPUT), habilita linger +
+`podman-restart.service` de usuário e sobe tudo. Depois, use sempre `bash start-server.sh` sem sudo.
+
+Ao adicionar portas novas no `compose.yaml`, libere-as também:
+`sudo iptables -I INPUT -p tcp --dport <porta> -j ACCEPT && sudo netfilter-persistent save`.
+
 ## PPP no Oracle Cloud
 
 O kernel Oracle (`linux-oracle`) **já inclui** o módulo `ppp_generic`, mas ele precisa ser carregado manualmente. Não é necessário trocar de kernel.
