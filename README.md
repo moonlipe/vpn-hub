@@ -59,6 +59,18 @@ chmod 600 forti-daemon.env
 # Preencha VPN_GATEWAY, VPN_USERNAME, VPN_PASSWORD
 ```
 
+#### openfortivpn só com usuário/senha (sem SAML)
+
+Para gateways sem SAML, adicione `FORTI_AUTH=password` no mesmo env file. O container roda o `openfortivpn` direto (sem Chromium), com reconexão automática.
+
+| Variável | Descrição |
+|----------|-----------|
+| `FORTI_AUTH` | `saml` (padrão) ou `password` |
+| `FORTI_TRUSTED_CERT` | sha256 do certificado do gateway (se não for de CA pública) |
+| `FORTI_REALM` | Realm de autenticação (opcional) |
+| `FORTI_SET_DNS` | `1` (padrão) aplica o DNS do gateway, `0` não aplica |
+| `FORTI_EXTRA_ARGS` | Flags extras para o `openfortivpn` |
+
 ### snx-rs (Check Point)
 
 ```bash
@@ -79,7 +91,32 @@ cp wireguard.conf.example ~/vpn-configs/wireguard/cliente-a.conf
 cp wireguard.conf.example ~/vpn-configs/wireguard/cliente-b.conf
 ```
 
-## Rodar
+## Compose — um container por VPN (várias instâncias)
+
+Para subir **vários** openfortivpn, WireGuard ou snx-rs ao mesmo tempo, use o compose: cada VPN roda num container próprio, com namespace de rede isolado (todos podem usar `ppp0`/`wg0` sem conflito).
+
+```bash
+cp compose.example.yaml compose.yaml   # gitignored — edite os serviços
+cp .env.example .env                   # VPN_HUB_IMAGE
+
+# Uma config por instância
+vpn-config/
+├── forti/cliente-a.env        # SAML
+├── forti/cliente-b.env        # FORTI_AUTH=password
+├── snx/cliente-c.toml
+└── wireguard/cliente-d.conf
+
+podman compose up -d                     # tudo
+podman compose up -d forti-cliente-a     # uma VPN só
+podman compose logs -f forti-cliente-a
+podman compose exec forti-cliente-a tail -f /var/log/vpn-hub/forti.log
+```
+
+Para adicionar uma instância, copie um bloco de serviço e troque nome, arquivo de config, volume de estado (forti SAML) e portas do socat. Cada instância forti SAML precisa de **seu próprio volume** de estado (sessão Azure AD).
+
+Build local: `podman build -t vpn-hub:local .` e `VPN_HUB_IMAGE=vpn-hub:local` no `.env`.
+
+## Rodar (container único — legado)
 
 ### Local (build + execução)
 

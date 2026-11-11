@@ -15,7 +15,7 @@ fi
 if [ -f /etc/vpn-hub/snx/config.toml ]; then
     FOUND_ANY_CONFIG=1
     # snx-rs geralmente cria tun0/snx0 — ajuste o nome conforme a versão usada
-    if ip link show tun0 &>/dev/null || ip link show snx0 &>/dev/null; then
+    if ip link show snx-xfrm &>/dev/null || ip link show tun0 &>/dev/null || ip link show snx0 &>/dev/null; then
         FOUND_ANY_UP=1
     fi
 fi

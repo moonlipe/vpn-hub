@@ -178,6 +178,7 @@ COPY scripts/start-snx.sh /usr/local/bin/start-snx.sh
 COPY scripts/snx-watchdog.sh /usr/local/bin/snx-watchdog.sh
 COPY scripts/start-wireguard.sh /usr/local/bin/start-wireguard.sh
 COPY scripts/start-forti-daemon.sh /usr/local/bin/start-forti-daemon.sh
+COPY scripts/start-forti-password.sh /usr/local/bin/start-forti-password.sh
 COPY scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 RUN chmod +x \
@@ -186,6 +187,7 @@ RUN chmod +x \
     /usr/local/bin/snx-watchdog.sh \
     /usr/local/bin/start-wireguard.sh \
     /usr/local/bin/start-forti-daemon.sh \
+    /usr/local/bin/start-forti-password.sh \
     /usr/local/bin/healthcheck.sh
 
 # WireGuard precisa do módulo/dev tun; expõe a porta padrão caso o container

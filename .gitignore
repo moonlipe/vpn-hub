@@ -1,19 +1,55 @@
 # Código do daemon — clonado via CI, não versionado aqui
 vpn-daemon/
 vpn-config/
+vpn-configs/
 
 # Credenciais e configs reais
 *.env
+.env.*
+!.env.example
 !forti-daemon.env.example
 *.toml
 !snx-config.example.toml
-start.sh
+*.conf
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
 
-# Sessão do navegador e cookies
+# Scripts/compose locais com IPs, portas e clientes reais
+start.sh
+start-gateway.sh
+compose.yaml
+compose.yml
+compose.override.yaml
+compose.override.yml
+docker-compose.yaml
+docker-compose.yml
+
+# Sessão do navegador, cookies e screenshots do Chromium (VPN_SCREENSHOTS)
 **/saml_cookie
 **/browser_state.json
 **/.local/
+*.png
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
 
 # Builds e temporários
 *.tar.gz
+*.tgz
+*.tmp
+
+# Editores / SO / ferramentas
 .claude/
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

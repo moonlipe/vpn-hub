@@ -32,6 +32,19 @@ if [ ! -w /etc/resolv.conf ]; then
     log "/etc/resolv.conf tornado gravável"
 fi
 
+# Fallback para compose (sem --dns=none): o runtime monta resolv.conf como
+# bind mount, que não pode ser removido. Com --privileged, desmontamos e
+# recriamos o arquivo com o mesmo conteúdo.
+if [ ! -w /etc/resolv.conf ] || ! (: >> /etc/resolv.conf) 2>/dev/null; then
+    RESOLV_CONTENT=$(cat /etc/resolv.conf 2>/dev/null || true)
+    if umount /etc/resolv.conf 2>/dev/null; then
+        printf '%s\n' "${RESOLV_CONTENT:-nameserver 8.8.8.8}" > /etc/resolv.conf
+        log "/etc/resolv.conf desmontado e recriado gravável"
+    else
+        log "AVISO: /etc/resolv.conf continua read-only (snx-rs pode falhar ao gravar DNS)"
+    fi
+fi
+
 cleanup() {
     log "Recebido sinal de encerramento, derrubando túneis..."
     for pid in "${PIDS[@]}"; do
@@ -51,6 +64,11 @@ trap cleanup SIGTERM SIGINT
 # ------------------------------------------------------------------
 
 if [ -n "${VPN_GATEWAY:-}" ] && [ -n "${VPN_USERNAME:-}" ] && [ -n "${VPN_PASSWORD:-}" ]; then
+  if [ "${FORTI_AUTH:-saml}" = "password" ]; then
+    log "Credenciais presentes (FORTI_AUTH=password), iniciando openfortivpn sem SAML..."
+    /usr/local/bin/start-forti-password.sh >> "$LOG_DIR/forti.log" 2>&1 &
+    PIDS+=($!)
+  else
     log "Credenciais do daemon SAML presentes, iniciando openfortivpn..."
     # Garante que o diretório de estado persistente (sessão do Azure AD,
     # logs) pertence ao vpndaemon antes de trocar de usuário — importante
@@ -59,6 +77,7 @@ if [ -n "${VPN_GATEWAY:-}" ] && [ -n "${VPN_USERNAME:-}" ] && [ -n "${VPN_PASSWO
     chown -R vpndaemon:vpndaemon /opt/vpn-daemon/.local
     /usr/local/bin/start-forti-daemon.sh >> "$LOG_DIR/forti.log" 2>&1 &
     PIDS+=($!)
+  fi
 else
     log "VPN_GATEWAY/VPN_USERNAME/VPN_PASSWORD não definidas — pulando openfortivpn."
 fi

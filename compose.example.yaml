@@ -1,0 +1,110 @@
+# =============================================================
+# compose.example.yaml — um container por VPN
+# =============================================================
+# Copie para compose.yaml (gitignored) e ajuste os serviços:
+#   cp compose.example.yaml compose.yaml
+#   cp .env.example .env
+#
+# Cada serviço é um container isolado com namespace de rede próprio,
+# então dá pra subir N openfortivpn (todos com ppp0), N WireGuard e N
+# snx-rs sem conflito de interface, rota ou `pkill` entre eles.
+#
+# Para adicionar uma instância: copie um bloco de serviço, troque o nome,
+# o arquivo de config, o volume de estado (forti) e as portas publicadas.
+#
+# Layout de configs esperado:
+#   vpn-config/
+#   ├── forti/<cliente>.env        # VPN_GATEWAY, VPN_USERNAME, VPN_PASSWORD
+#   ├── snx/<cliente>.toml         # config do snx-rs
+#   └── wireguard/<cliente>.conf   # config do WireGuard
+#
+# Uso:
+#   podman compose up -d                  # sobe tudo
+#   podman compose up -d forti-cliente-a  # sobe só uma VPN
+#   podman compose logs -f forti-cliente-a
+#   podman compose restart wg-cliente-d
+# =============================================================
+
+x-vpn-base: &vpn-base
+  image: ${VPN_HUB_IMAGE:-ghcr.io/moonlipe/vpn-hub:latest}
+  # "always" (e não unless-stopped): o podman-restart.service só religa no
+  # boot containers com restart-policy=always.
+  restart: always
+  # snx-rs escreve em /proc/sys (XFRM) e o entrypoint pode precisar
+  # desmontar /etc/resolv.conf — mantido em todos por simplicidade.
+  privileged: true
+  devices:
+    - /dev/net/tun
+  sysctls:
+    net.ipv4.ip_forward: "1"
+
+x-forti-base: &forti-base
+  <<: *vpn-base
+  devices:
+    - /dev/net/tun
+    - /dev/ppp
+
+services:
+  # ----------------------------------------------------------
+  # openfortivpn (SAML/MFA) — uma instância por gateway/cliente
+  # ----------------------------------------------------------
+  forti-cliente-a:
+    <<: *forti-base
+    container_name: forti-cliente-a
+    env_file: ./vpn-config/forti/cliente-a.env
+    environment:
+      SOCAT_FORWARDS: "4000:10.0.0.100:3389"
+    ports:
+      - "4000:4000"
+    volumes:
+      # Sessão do Azure AD — um volume POR instância (evita MFA a cada restart)
+      - forti-cliente-a-state:/opt/vpn-daemon/.local
+
+  # Cliente com login/senha simples (sem SAML): no .env, FORTI_AUTH=password
+  forti-cliente-b:
+    <<: *forti-base
+    container_name: forti-cliente-b
+    env_file: ./vpn-config/forti/cliente-b.env
+    environment:
+      SOCAT_FORWARDS: "4100:10.1.0.50:22"
+    ports:
+      - "4100:4100"
+    volumes:
+      - forti-cliente-b-state:/opt/vpn-daemon/.local
+
+  # ----------------------------------------------------------
+  # snx-rs (Check Point)
+  # ----------------------------------------------------------
+  snx-cliente-c:
+    <<: *vpn-base
+    container_name: snx-cliente-c
+    environment:
+      SNX_HEALTHCHECK_IP: "10.20.0.1"   # remova para desativar o watchdog
+      SOCAT_FORWARDS: "4200:10.20.0.10:3389"
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./vpn-config/snx/cliente-c.toml:/etc/vpn-hub/snx/config.toml:ro,Z
+
+  # ----------------------------------------------------------
+  # WireGuard — um container por túnel (interface wg0 dentro de cada um)
+  # ----------------------------------------------------------
+  wg-cliente-d:
+    <<: *vpn-base
+    container_name: wg-cliente-d
+    environment:
+      SOCAT_FORWARDS: "4300:192.168.100.10:5432"
+    ports:
+      - "4300:4300"
+    volumes:
+      - ./vpn-config/wireguard/cliente-d.conf:/etc/vpn-hub/wireguard/wg0.conf:ro,Z
+
+  wg-cliente-e:
+    <<: *vpn-base
+    container_name: wg-cliente-e
+    volumes:
+      - ./vpn-config/wireguard/cliente-e.conf:/etc/vpn-hub/wireguard/wg0.conf:ro,Z
+
+volumes:
+  forti-cliente-a-state:
+  forti-cliente-b-state:

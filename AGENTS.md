@@ -11,6 +11,10 @@ Container Podman unificado com 3 VPNs simultâneas:
 
 Cada VPN rota apenas as sub-redes do seu cliente (sem conflito).
 
+**Modo compose (recomendado para várias instâncias):** `compose.example.yaml` → `compose.yaml` (gitignored).
+Um container por VPN (netns isolado), mesma imagem; o entrypoint sobe só o que a config montada ativa.
+openfortivpn tem dois modos via `FORTI_AUTH`: `saml` (padrão, `vpn_daemon.py`) ou `password` (`start-forti-password.sh`).
+
 ## Estrutura
 
 ```
@@ -19,14 +23,17 @@ vpners/
 ├── entrypoint.sh                 # Orchestrador: sobe VPNs + socat, mantém container vivo
 ├── start.sh                      # LOCAL: build + run (gitignored)
 ├── scripts/
-│   ├── start-forti-daemon.sh     # Executa vpn_daemon.py como vpndaemon via gosu
+│   ├── start-forti-daemon.sh     # Executa vpn_daemon.py como vpndaemon via gosu (SAML)
+│   ├── start-forti-password.sh   # openfortivpn usuário/senha (FORTI_AUTH=password), loop de reconexão
 │   ├── start-snx.sh              # snx-rs (sem exec — watchdog pode gerenciar)
 │   ├── snx-watchdog.sh           # Watchdog: ping healthcheck, restart com limite
 │   ├── start-wireguard.sh        # wg-quick up por config + monitoramento
 │   └── healthcheck.sh            # Verifica interfaces ativas
 ├── vpn-daemon/                   # Clonado via CI de moonlipe/openforti-saml-resolver (gitignored)
 │   └── vpn_daemon.py             # Daemon Python: Playwright + openfortivpn SAML
-├── forti-daemon.env.example      # Template: VPN_GATEWAY, VPN_USERNAME, VPN_PASSWORD
+├── compose.example.yaml          # Template compose: um serviço por VPN
+├── .env.example                  # VPN_HUB_IMAGE para o compose
+├── forti-daemon.env.example      # Template: VPN_GATEWAY, VPN_USERNAME, VPN_PASSWORD, FORTI_AUTH
 ├── snx-config.example.toml       # Template config snx-rs
 ├── wireguard.conf.example       # Template config WireGuard
 └── .github/workflows/build-push.yml  # CI: build → ghcr.io/moonlipe/vpn-hub:latest
@@ -70,6 +77,8 @@ vpn-configs/
 | `VPN_GATEWAY` | openfortivpn | URL do gateway |
 | `VPN_USERNAME` | openfortivpn | Usuário |
 | `VPN_PASSWORD` | openfortivpn | Senha |
+| `FORTI_AUTH` | optional | `saml` (padrão) ou `password` |
+| `FORTI_TRUSTED_CERT` | optional | sha256 do cert do gateway (modo password) |
 | `SNX_HEALTHCHECK_IP` | snx-rs watchdog | IP para ping (ativa watchdog) |
 | `SOCAT_FORWARDS` | optional | Port-forwards (`4000:10.0.0.100:3389,...`) |
 | `VPN_DEBUG` | optional | Logs detalhados |
