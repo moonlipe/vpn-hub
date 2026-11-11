@@ -23,7 +23,14 @@ mkdir -p /etc/wireguard
 cp "$WG_CONFIG" "/etc/wireguard/${WG_IFACE}.conf"
 chmod 600 "/etc/wireguard/${WG_IFACE}.conf"
 
-wg-quick up "$WG_IFACE"
+# Retenta até subir: uma falha transitória (ex.: DNS do Endpoint fora no
+# boot) não pode deixar o container "Up" sem túnel para sempre.
+RETRY_DELAY="${WG_RETRY_DELAY:-30}"
+until wg-quick up "$WG_IFACE"; do
+    log "Falha ao subir $WG_IFACE — nova tentativa em ${RETRY_DELAY}s"
+    ip link delete dev "$WG_IFACE" 2>/dev/null || true
+    sleep "$RETRY_DELAY"
+done
 
 log "Interface $WG_IFACE ativa. Mantendo processo vivo para monitoramento..."
 

@@ -4,7 +4,8 @@ set -euo pipefail
 # =============================================================
 # start-server.sh — sobe/atualiza as VPNs no servidor via compose
 # =============================================================
-# Uso (em ~/vpn-hub, ao lado do compose.yaml):
+# Uso (em ~/vpn-hub, ao lado do compose.yaml). Rode no MESMO modo do
+# setup antigo: se o container antigo rodava com sudo (rootful), use sudo.
 #   bash start-server.sh               # pull + sobe/atualiza tudo
 #   bash start-server.sh forti snx     # só esses serviços
 #
@@ -37,10 +38,16 @@ podman compose pull "$@"
 log "Subindo serviços..."
 podman compose up -d "$@"
 
-# Religa os containers (restart: always) depois de reboot
-if ! systemctl --user is-enabled podman-restart.service >/dev/null 2>&1; then
+# Religa os containers (restart: always) depois de reboot.
+# Rootful (sudo) -> unit de sistema; rootless -> unit de usuário.
+if [ "$(id -u)" -eq 0 ]; then
+    SYSTEMCTL=(systemctl)
+else
+    SYSTEMCTL=(systemctl --user)
+fi
+if ! "${SYSTEMCTL[@]}" is-enabled podman-restart.service >/dev/null 2>&1; then
     log "Habilitando podman-restart.service (auto-start no boot)..."
-    systemctl --user enable podman-restart.service || true
+    "${SYSTEMCTL[@]}" enable podman-restart.service || log "AVISO: não foi possível habilitar podman-restart.service"
 fi
 
 sleep 5

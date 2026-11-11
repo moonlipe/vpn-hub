@@ -68,7 +68,7 @@ service_for_dev() {
         eth*|lo|"") echo ""; return ;;
     esac
     for wg in "${WG_IFACES[@]}"; do
-        [ "$dev" = "$wg" ] && { echo "wg-$wg"; return; }
+        [ "$dev" = "$wg" ] && { echo "wg-${wg#wg-}"; return; }
     done
     [ "$HAS_SNX" = 1 ] && { echo snx; return; }
     echo ""
@@ -118,8 +118,9 @@ x-vpn-base: &vpn-base
   privileged: true
   devices:
     - /dev/net/tun
+  # formato lista: podman-compose 1.0.x perde o valor no formato dict
   sysctls:
-    net.ipv4.ip_forward: "1"
+    - net.ipv4.ip_forward=1
 
 x-forti-base: &forti-base
   <<: *vpn-base
@@ -167,13 +168,14 @@ EOF
 fi
 
 for wg in "${WG_IFACES[@]}"; do
+svc="wg-${wg#wg-}"
 cat <<EOF
-  wg-$wg:
+  $svc:
     <<: *vpn-base
-    container_name: wg-$wg
+    container_name: $svc
 EOF
-[ -n "${FWD[wg-$wg]:-}" ] && { echo "    environment:"; emit_forwards "wg-$wg"; }
-emit_ports "wg-$wg"
+[ -n "${FWD[$svc]:-}" ] && { echo "    environment:"; emit_forwards "$svc"; }
+emit_ports "$svc"
 cat <<EOF
     volumes:
       - $CONFIG_DIR/wireguard/$wg.conf:/etc/vpn-hub/wireguard/$wg.conf:ro,Z

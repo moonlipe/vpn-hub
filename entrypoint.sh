@@ -45,6 +45,17 @@ if [ ! -w /etc/resolv.conf ] || ! (: >> /etc/resolv.conf) 2>/dev/null; then
     fi
 fi
 
+# DNS fixo, igual ao modelo antigo (--dns=none + 8.8.8.8). Em redes do
+# compose o resolv.conf aponta pro aardvark-dns no host, que firewalls
+# (ex.: Oracle) bloqueiam → endpoints/gateways por nome não resolvem.
+# VPN_DNS_SERVERS="keep" mantém o resolv.conf do runtime.
+VPN_DNS_SERVERS="${VPN_DNS_SERVERS:-8.8.8.8 8.8.4.4}"
+if [ "$VPN_DNS_SERVERS" != "keep" ]; then
+    { for ns in ${VPN_DNS_SERVERS//,/ }; do echo "nameserver $ns"; done; } > /etc/resolv.conf \
+        && log "DNS: ${VPN_DNS_SERVERS}" \
+        || log "AVISO: não foi possível gravar /etc/resolv.conf"
+fi
+
 cleanup() {
     log "Recebido sinal de encerramento, derrubando túneis..."
     for pid in "${PIDS[@]}"; do
