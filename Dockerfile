@@ -120,6 +120,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     fonts-liberation \
     libsqlite3-0 \
+    libatomic1 \
     socat \
     && rm -rf /var/lib/apt/lists/*
 
