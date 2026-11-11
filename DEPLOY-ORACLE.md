@@ -2,6 +2,32 @@
 
 Guia completo para rodar o VPN Gateway em instâncias Oracle Cloud (E2 Micro, Ubuntu).
 
+
+## Migrar do container único para compose
+
+Em `~/vpn-hub`, com o container antigo `vpn-hub` ainda rodando e as VPNs conectadas:
+
+```bash
+sudo apt install -y podman-compose          # provider do `podman compose`
+cp start-server.sh start-server.sh.old      # backup do script antigo
+
+# copiar os scripts do repo (deploy/) para ~/vpn-hub
+curl -fsSLo migrate-to-compose.sh https://raw.githubusercontent.com/moonlipe/vpner/main/deploy/migrate-to-compose.sh
+curl -fsSLo start-server.sh       https://raw.githubusercontent.com/moonlipe/vpner/main/deploy/start-server.sh
+
+OLD_SCRIPT=./start-server.sh.old bash migrate-to-compose.sh
+cat compose.yaml             # revisar
+bash start-server.sh         # remove o vpn-hub antigo e sobe um container por VPN
+```
+
+O `migrate-to-compose.sh` pergunta ao container antigo por qual interface cada destino do
+`SOCAT_FORWARDS` sai (`ip route get`) e coloca cada forward no serviço da VPN certa
+(`ppp*` → forti, `wg*` → wireguard, resto → snx). Reaproveita `vpn-configs/` como está e o
+volume `vpn-daemon-state` (sem novo MFA). Se o script antigo tiver outro nome:
+`OLD_SCRIPT=./start-server.sh.old bash migrate-to-compose.sh`.
+
+Depois: `bash start-server.sh` para atualizar (pull + recria só o que mudou).
+
 ## PPP no Oracle Cloud
 
 O kernel Oracle (`linux-oracle`) **já inclui** o módulo `ppp_generic`, mas ele precisa ser carregado manualmente. Não é necessário trocar de kernel.
